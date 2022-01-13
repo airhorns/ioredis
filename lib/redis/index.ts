@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-namespace */
+/* eslint-disable @typescript-eslint/prefer-namespace-keyword */
 import { defaults, noop } from "../utils/lodash";
 import { inherits } from "util";
 import { EventEmitter } from "events";
@@ -26,6 +28,10 @@ import {
 import { NetStream, CallbackFunction, ICommandItem } from "../types";
 
 const debug = Debug("redis");
+
+declare global {
+  const expect: any;
+}
 
 /**
  * Creates a Redis instance
@@ -180,6 +186,12 @@ function Redis() {
   // Prepare autopipelines structures
   this._autoPipelines = new Map();
   this._runningAutoPipelines = new Set();
+
+  this._createError = new Error("when redis was created")
+  if (typeof expect != "undefined") {
+    // eslint-disable-next-line no-undef
+    this._testState = expect.getState()
+  }
 
   Object.defineProperty(this, "autoPipelineQueueSize", {
     get() {
@@ -383,6 +395,13 @@ Redis.prototype.connect = function (callback) {
               err.code = "ETIMEDOUT";
               // @ts-ignore
               err.syscall = "connect";
+
+              console.warn("emitting redis connect timeout event", {
+                creationStack: _this._createError,
+                creationTestState: _this._testState,
+                // eslint-disable-next-line no-undef
+                currentTestState: typeof expect != 'undefined' ? expect.getState() : undefined,
+              })
               eventHandler.errorHandler(_this)(err);
             });
             stream.once(CONNECT_EVENT, function () {
